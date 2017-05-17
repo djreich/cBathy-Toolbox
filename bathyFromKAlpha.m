@@ -1,12 +1,15 @@
 function bathy = bathyFromKAlpha(bathy)
 %
 %  bathy = bathyFromKAlpha(bathy);
-% 
+%
 % final step in BWLite to take multi-frequency estimates of bathymetry
 % and find a best solution for each tomographic location using skill
 % and error weightings
 
-OPTIONS = statset('nlinfit');   % nlinfit options
+try
+    OPTIONS = statset('nlinfit');   % nlinfit options 
+catch 
+end 
 OPTIONS.MaxIter = 30;
 OPTIONS.TolX = 1e-10; %%%1e-3;l
 OPTIONS.Display = 'iter';
@@ -38,29 +41,40 @@ Y = repmat(y', [1, size(x,2), nFreqs]);
 for ix = 1: length(x)
     for iy = 1: length(y)
         kappa = 1 + (bathy.params.kappa0-1)*(x(ix) - xMin)/ ...
-        (xMax - xMin);
+            (xMax - xMin);
         % find range-based weights, Wmi to contribute to total weight
         dxmi = X - x(ix);
         dymi = Y - y(iy);
         r = sqrt((dxmi/(params.Lx*kappa)).^2 + (dymi/(params.Ly*kappa)).^2);
         Wmi = interp1(ri,ai,r,'linear*',0);  % sample normalized weights
-
+        
         id = find((Wmi > 0) & ...
-                  (bathy.fDependent.skill>params.QTOL) & ...
-                   (~isnan(bathy.fDependent.hTemp)));
+            (bathy.fDependent.skill>params.QTOL) & ...
+            (~isnan(bathy.fDependent.hTemp)));
         if(length(id)>params.minValsForBathyEst)                % just need two
             f = bathy.fDependent.fB(id);
             k = bathy.fDependent.k(id);
-	    kErr = bathy.fDependent.kErr(id);
+            kErr = bathy.fDependent.kErr(id);
             s = bathy.fDependent.skill(id);
             l = bathy.fDependent.lam1(id);
-%             % find dispersion sensitivity
-             gamma = 4*pi*pi*f.*f./(g.*k);
-             wMu = 1./interp1(gammaiBar, mu, gamma);
-             w = Wmi(id).*wMu.*l.*s./(eps+k);    % weights depend on skill and variance (lam)
+            %             % find dispersion sensitivity
+            gamma = 4*pi*pi*f.*f./(g.*k);
+            wMu = 1./interp1(gammaiBar, mu, gamma);
+            w = Wmi(id).*wMu.*l.*s./(eps+k);    % weights depend on skill and variance (lam)
             hInit = bathy.fDependent.hTemp(id)'*s / sum(s);
-            [h,resid,jacob] =nlinfit([f, w], k.*w, ...
-                'kInvertDepthModel',hInit, OPTIONS);
+            try
+               [h,resid,jacob] =nlinfit([f, w], k.*w, ...
+                     'kInvertDepthModel',hInit, OPTIONS);
+            catch ME %may not have stat/machine learning toolbox
+                [h,resid,jacob] = levmarfit_fd([f, w], k.*w, ...
+                  @kInvertDepthModel,hInit, OPTIONS); % levenberg-marquardt
+                if norm(jacob'*resid)>max(OPTIONS.TolX,1e-7) 
+                    h = fminsearch(...
+                        @(h)norm(k.*w-kInvertDepthModel(h,[f,w]))^2,h); % if l-m fails, run fminsearch
+                    [h,resid,jacob] = levmarfit_fd([f,w],k.*w, ...
+                        @kInvertDepthModel,h,OPTIONS); % feed fminsearch output as initial guess to l-m
+                end
+            end
             if (~isnan(h))      % some value returned
                 hErr = bathyCI(resid,jacob, w);		 % get limits not bounds
                 kModel = kInvertDepthModel(h, [f, w]);
@@ -79,9 +93,9 @@ end	% ix
 %   Copyright (C) 2017  Coastal Imaging Research Network
 %                       and Oregon State University
 
-%    This program is free software: you can redistribute it and/or  
-%    modify it under the terms of the GNU General Public License as 
-%    published by the Free Software Foundation, version 3 of the 
+%    This program is free software: you can redistribute it and/or
+%    modify it under the terms of the GNU General Public License as
+%    published by the Free Software Foundation, version 3 of the
 %    License.
 
 %    This program is distributed in the hope that it will be useful,
