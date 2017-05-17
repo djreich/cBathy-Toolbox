@@ -31,8 +31,11 @@ rmse = norm(resid) / sqrt(v);
 se = sqrt(diag_info) * rmse;
 
 % Calculate bathyError from t-stats.
-bathyErr = se * tinv(1-alpha/2,v);
-
+try
+    bathyErr = se * tinv(1-alpha/2,v);
+catch
+    bathyErr = se * tinv_nostat(1-alpha/2,v);
+end
 
 %
 %   Copyright (C) 2017  Coastal Imaging Research Network
