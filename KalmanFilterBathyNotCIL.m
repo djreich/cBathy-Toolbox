@@ -15,8 +15,13 @@ hNewErr = newBathy.fCombined.hErr;
 hPrior = priorBathy.runningAverage.h;
 dt = (str2num(newBathy.epoch) - str2num(priorBathy.epoch)) / (24*3600);  % in days
 Q = findProcessError(newBathy.params.stationStr, newBathy, H)*dt;
-P = nansum(cat(3, priorBathy.runningAverage.P, Q),3);
-
+try
+    P = nansum(cat(3, priorBathy.runningAverage.P, Q),3);
+catch
+    tmp = cat(3,priorBathy.runningAverage.P,Q);
+    tmp(isnan(tmp))=0;
+    P = sum(tmp,3);
+end
 % update everywhere then fix the nan problems in prior or new
 K = P ./ (P + newBathy.fCombined.hErr.^2);
 hSmoothed = hPrior + K.*(hNew-hPrior);
