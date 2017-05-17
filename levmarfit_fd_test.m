@@ -1,4 +1,7 @@
-options = statset('nlinfit');
+try
+    options = statset('nlinfit');
+catch
+end
 options.MaxIter = 100;
 options.TolX = 1e-10;
 options.Display = 'off';
@@ -51,13 +54,36 @@ beta0 = [1.01;0.99];
 assert(lmpass,...
     sprintf('Levenberg-Marquardt failed to reduce gradient norm below tolerance in data case %d',i));
 
-%% Third test case: Regression Test
+%% Third test case: Regression Test on Single Bathy Run (fCombined)
+%disable Statistics Toolbox
 rmpath(strcat(matlabroot,'/toolbox/stats/stats/'));
 stationStr = 'argus02a';
 stackName = 'testStack102210Duck';
-bathy_lm = analyzeSingleBathyRunNotCIL(stackName, stationStr);
-load('bathystruct-102210Duck');
-diff = abs(bathy_lm.fCombined.h(~isnan(bathy.fCombined.h))-bathy.fCombined.h(~isnan(bathy.fCombined.h)))>1e-2;
-% fCombined depth estimates differ by no more than .01 meters
-assert(sum(diff)==0,'Regression Test Failed');
+%get bathy struct without using Stat toolbox
+bathy_ns = analyzeSingleBathyRunNotCIL(stackName, stationStr);
+%re-enable Statistics Toolbox
 addpath(strcat(matlabroot,'/toolbox/stats/stats/'));
+%get bathy struct using Stat toolbox
+try
+    load('bathystruct-102210Duck.mat');
+catch
+    bathy = analyzeSingleBathyRunNotCIL(stackName, stationStr);
+end
+h = bathy.fCombined.h; hns = bathy_ns.fCombined.h;
+% fCombined depth estimates have same NaN structure
+assert(isequal(isnan(h),isnan(hns)),'NaN values appear in different locations in fCombined.h')
+diff = abs(h(~isnan(h))-hns(~isnan(hns)))./(eps+abs(h(~isnan(h))))>1e-3;
+% fCombined depth estimates differ by no more than 0.1 percent
+assert(sum(diff)==0,sprintf('fCombined.h does not match in %d locations',sum(diff)));
+hErr = bathy.fCombined.hErr; hnsErr = bathy_ns.fCombined.hErr;
+% hErr has same NaN structure
+assert(isequal(isnan(hErr),isnan(hnsErr)),'NaN values appear in different locations in fCombined.hErr');
+diffErr = abs(hErr(~isnan(hErr))-hnsErr(~isnan(hnsErr)))./(eps+abs(hErr(~isnan(hErr))))>1e-3;
+% hErr differ by no more than 0.1 percent
+assert(sum(diffErr)==0,sprintf('fCombined.hErr does not match in %d places',sum(diffErr)));
+J = bathy.fCombined.J; Jns = bathy_ns.fCombined.J;
+% J has same NaN structure
+assert(isequal(isnan(J),isnan(Jns)),'NaN values appear in different locations in fCombined.J');
+diffJ = abs(J(~isnan(J))-Jns(~isnan(Jns)))./(eps+abs(J(~isnan(J))))>1e-3;
+% J differs by no more than 0.1 percent
+assert(sum(diffJ)==0,sprintf('fCombined.J does not match in %d locations',sum(diffJ)));

@@ -9,16 +9,24 @@ tic;
     levmarfit_fd(X, Y, modelfun, beta0, options);
 lmtime = toc;
 
-tic;
-[betanl,resid,jacob] = ...
-    nlinfit(X,Y,modelfun,beta0,options);
-nltime = toc;
+try
+    tic;
+    [betanl,resid,jacob] = ...
+        nlinfit(X,Y,modelfun,beta0,options);
+    nltime = toc;
+catch
+    nltime = NaN;
+end
 
 % Ensure analytic gradient has been reduced below the tolerance
 lmgradnorm = norm(gradfun(beta));
 lmpass = norm(gradfun(beta))<options.TolX*10^3;
 
-nlgradnorm = norm(gradfun(betanl));
-nlpass = nlgradnorm<options.TolX*10^3;
+try
+    nlgradnorm = norm(gradfun(betanl));
+    nlpass = nlgradnorm<options.TolX*10^3;
+catch
+    nlgradnorm = NaN; nlpass = 0;
+end
 end
 
