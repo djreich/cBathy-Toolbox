@@ -39,7 +39,10 @@ g=9.81;                         % 'g'
 minNeededPixels = 6;            % to avoid edge anomalies
 minLFraction = 0.5;             % min fract of wavelength to span
 
-OPTIONS = statset('nlinfit');   % fit options
+try
+    OPTIONS = statset('nlinfit');   % fit options
+catch
+end
 OPTIONS.MaxIter = 50;
 OPTIONS.TolFun = 1e-6; %%%1e-3;
 
@@ -47,7 +50,7 @@ Nxy = size(xyz,1);
 if Nxy<minNeededPixels          % too few points, bail out
     if( cBDebug( params ) )
         fprintf('Inadequate data to analyze tile, [x,y] = [%d, %d]\n', xm, ym)
-    end;
+    end
     fDependent.k = nan(1,params.nKeep);
     return
 end
@@ -107,8 +110,11 @@ for i = 1:nKeep         % frequency loop
     LExpect = minLFraction*4*pi/(kmin+kmax);     % expected scale from mean k.
     LB_UB = [kmin seedAlpha-pi/2;kmax seedAlpha+pi/2];
     OPTIONS.TolX = min([kmin/1000,pi/180/1000]); % min([kmin/100,pi/180/10]);
-    statset(OPTIONS);
-    warning off stats:nlinfit:IterationLimitExceeded
+    try
+        statset(OPTIONS);
+        warning off stats:nlinfit:IterationLimitExceeded
+    catch
+    end
 
     % info for depth subsequent h error estimation
     hiimax = 9.8*(1/fs(i)^2)/(2*pi)/2;  % deepest allowable = L0/2
@@ -133,9 +139,18 @@ for i = 1:nKeep         % frequency loop
         try
             % do nonlinear fit on surviving data
             kAlphaPhiInit = findKAlphaPhiInit(v, xy, LB_UB, params);
-            [kAlphaPhi,resid,jacob] = nlinfit([xy w], [real(v); imag(v)],...
+            try
+                [kAlphaPhi,resid,jacob] = nlinfit([xy w], [real(v); imag(v)],...
                            'predictCSM',kAlphaPhiInit, OPTIONS);
-            
+            catch
+                [kAlphaPhi,resid,jacob] = levmarfit_fd([xy w], [real(v); imag(v)],...
+                           'predictCSM',kAlphaPhiInit, OPTIONS);
+                if norm(jacob'*resid)>max(OPTIONS.TolX,1e-7)
+                    kAlphaPhi = fminsearch(@(k)norm([real(v);imag(v)]-predictCSM(k,[xy w]))^2,kAlphaPhi);
+                    [kAlphaPhi,resid,jacob] = levmarfit_fd([xy w], [real(v); imag(v)],...
+                           'predictCSM',kAlphaPhi, OPTIONS);
+                end
+            end
             % check if outside acceptable limits
             if ((kAlphaPhi(1)<LB_UB(1,1)) || (kAlphaPhi(1)>LB_UB(2,1)) ...
                     || (kAlphaPhi(2)<LB_UB(1,2)) || (kAlphaPhi(2)>LB_UB(2,2)))
