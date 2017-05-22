@@ -33,6 +33,12 @@ params.debug.TRANSECTY = 900;		  % for plotStacksAndPhaseMaps
 % default offshore wave angle.  For search seeds.
 params.offshoreRadCCWFromx = 0;
 
+% spatial regularization settings.
+params.regx = 2; %level of cross-shore derivative for regularization
+params.regy = 2; %level of along-shore derivative for regularization
+params.taux = 10^2*5; %cross-shore regularization constant (dx^regx*QTOL*minLam)
+params.tauy = 25^2*5; %along-shore regularization constant (dy^regy*QTOL*minLam)
+
 %
 %   Copyright (C) 2017  Coastal Imaging Research Network
 %                       and Oregon State University
