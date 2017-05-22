@@ -35,7 +35,11 @@ for i=1:nx*ny
     n = nansum(A(:,i))/max(A(:,i));
     variance = nansum(r(J==i).^2)/...
         nansum(A(:,i).^2);
-    hErr(i) = sqrt(variance)*tinv(1-.05/2,n-1);
+    if variance==0 || isnan(variance)
+        hErr(i)=Inf;
+    else
+        hErr(i) = sqrt(variance)*tinv(1-.05/2,n-1);
+    end
 end
 bathy.fCombined.h = reshape(h,ny,nx);
 bathy.fCombined.hErr = reshape(hErr,ny,nx);
