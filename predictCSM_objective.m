@@ -9,9 +9,9 @@ if nargout>1
     x = X(:,1); y = X(:,2); w = X(:,3); 
     k = kAlphaPhi(1); alpha = kAlphaPhi(2); Phi = kAlphaPhi(3);
     tmp_in = -k*cos(alpha)*x-k*sin(alpha)*y+Phi;
-    tmp_out = [-cos(alpha)*x-sin(alpha)*y,k*sin(alpha)*x-k*cos(alpha)*y,1];
-    jac_upper = w.*sin(tmp_in).*tmp_out;
-    jac_lower = -w.*cos(tmp_in).*tmp_out;
+    tmp_out = w.*[-cos(alpha)*x-sin(alpha)*y,k*sin(alpha)*x-k*cos(alpha)*y,ones(size(x,1),1)];
+    jac_upper = tmp_out.*sin(tmp_in);
+    jac_lower = -tmp_out.*cos(tmp_in);
     jac = [jac_upper;jac_lower];
     gout = jac'*r;
 end
