@@ -170,8 +170,14 @@ for i = 1:nKeep         % frequency loop
             end
 
             % get confidence limits
-            ex = nlparci(real(0*kAlphaPhi),resid,jacob); % get limits not bounds
-            ex = real(ex(:,2)); % get limit, not bounds
+            try
+                ex = nlparci(real(0*kAlphaPhi),resid,jacob); % get limits not bounds
+                ex = real(ex(:,2)); % get limit, not bounds
+            catch
+                n = size(resid,1); p = size(jacob,2);
+                COV = (1/(n-p))*(resid'*resid)*((jacob'*jacob)\eye(p));
+                ex = tinv_nostat(.975,n-p)*sqrt(diag(COV));
+            end
         catch   % nlinfit failed with fatal errors, adding bogus
             kAlphaPhi = [nan nan nan];
             ex = kAlphaPhi;
